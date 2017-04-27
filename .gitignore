@@ -1,0 +1,6 @@
+caffe/
+CMakeLists.txt
+classify.py
+detect.py
+draw_net.py
+requirements.txt
