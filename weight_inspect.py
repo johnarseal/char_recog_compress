@@ -24,8 +24,9 @@ model_def = caffe_root + 'vgg13_deploy.prototxt'
 model_weights = caffe_root + 'vgg13_iter_32000.caffemodel'
 net = caffe.Net(model_def,model_weights,caffe.TEST)
 
-param_wts = net.params['re_fc8_128img'][0].data
-print type(param_wts[0][0])
+
+layer_name = "conv4_1"
+param_wts = net.params[layer_name][0].data
 
 '''
 row,col = param_wts.shape
@@ -43,6 +44,9 @@ print "max: " + str(wts_max)
 
 wts_vec = param_wts.flatten()
 
-print sum(abs(wts_vec) < 0.005)
+print sum(abs(wts_vec) < 0.01)
 
+plt.hist(wts_vec,bins=20)
+plt.plot()
+plt.show()
 
