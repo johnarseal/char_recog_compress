@@ -4,3 +4,4 @@ classify.py
 detect.py
 draw_net.py
 requirements.txt
+*.swp
