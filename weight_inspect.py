@@ -25,6 +25,7 @@ model_weights = caffe_root + 'vgg13_iter_32000.caffemodel'
 net = caffe.Net(model_def,model_weights,caffe.TEST)
 
 param_wts = net.params['re_fc8_128img'][0].data
+print type(param_wts[0][0])
 
 '''
 row,col = param_wts.shape

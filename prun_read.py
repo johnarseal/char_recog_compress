@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib as mpl  
 import matplotlib.pyplot as plt 
 from bitarray import bitarray
+import struct
+
 
 
 def normalize(img):
@@ -17,7 +19,6 @@ def preprocess(img):
 	img = normalize(img)
 	img = np.transpose(img,(2,0,1))
 	return img
-
 
 def predict(fn,net):
 	namef = open(fn)	
@@ -50,30 +51,45 @@ model_def = caffe_root + 'vgg13_deploy.prototxt'
 model_weights = caffe_root + 'vgg13_iter_32000.caffemodel'
 net = caffe.Net(model_def,model_weights,caffe.TEST)
 
-param_wts = net.params[layer_name][0].data
+
+param_fn = layer_name + ".params"
+read_bitarr = bitarray(endian='big')
+#read from file
+with open(param_fn, 'rb') as f:
+	read_bitarr.fromfile(f)
 
 
-wts_vec = param_wts.flatten()
-wts_vec[abs(wts_vec) < 0.01] = 0
-
-
-# multiply by 1000 and then convert to int8
-wts_vec *= 1024
-wts_vec = wts_vec.astype('int8')
-
-# starting to save the weights in bytes
-# the maximum length of bytes we need
-save_bitarr = bitarray(endian='big')
-for wts in wts_vec:
-	if wts == 0:
-		save_bitarr.append(0)
+#fead the parameters vector
+wts_mat = np.zeros_like(net.params[layer_name][0].data,dtype='int8')
+wts_vec = wts_mat.flatten()
+totalcnt = wts_vec.shape[0]
+param_ind = 0
+bit_ind = 0
+print totalcnt
+print len(read_bitarr)
+while(param_ind < totalcnt):
+	bit = read_bitarr[bit_ind]
+	if bit == 0:
+		wts_vec[param_ind] = 0
+		bit_ind += 1
 	else:
-		cur_byte = bitarray('1',endian='big')
-		cur_byte.frombytes(wts.tobytes())
-		save_bitarr.extend(cur_byte)
+		bit_ind += 1
+		byte = read_bitarr[bit_ind:bit_ind+8]
+		wts_vec[param_ind] = struct.unpack(">b",byte)[0]
+		bit_ind += 8 
+	param_ind += 1
 
-f = open(layer_name+'.params','wb')
-save_bitarr.tofile(f)
+
+
+wts_vec = wts_vec.astype('float32')
+wts_vec /= 1000
+wts_vec = wts_vec.reshape(wts_mat.shape)
+net.params[layer_name][0].data[...] = wts_vec
+
+#test output
+predict("/F/ZZ/char_patches/name_label_val.txt",net)
+
+
 f.close()
 
 

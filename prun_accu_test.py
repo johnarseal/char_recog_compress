@@ -60,13 +60,25 @@ for i in range(row):
 
 wts_vec = param_wts.flatten()
 wts_vec[abs(wts_vec) < 0.01] = 0
-wts_vec *= 1000
+wts_vec *= 1024
 wts_vec = [int(x) for x in wts_vec]
 wts_vec = np.array(wts_vec,dtype='float32')
-wts_vec /= 1000
+wts_vec /= 1024
 new_wts = wts_vec.reshape(4096,2048)
-
 net.params['fc7_128img'][0].data[...] = new_wts
+
+# for the bias
+
+bias_vec = net.params['fc7_128img'][1].data
+bias_vec[abs(bias_vec) < 0.1] = 0
+bias_vec *= 1024
+bias_vec = [int(x) for x in bias_vec]
+bias_vec = np.array(bias_vec,dtype='float32')
+bias_vec /= 1024
+net.params['fc7_128img'][1].data[...] = bias_vec
+
+
+
 predict("/F/ZZ/char_patches/name_label_val.txt",net)
 
 
