@@ -24,29 +24,27 @@ model_def = caffe_root + 'vgg13_deploy.prototxt'
 model_weights = caffe_root + 'vgg13_iter_32000.caffemodel'
 net = caffe.Net(model_def,model_weights,caffe.TEST)
 
+layer_name_arr = net.params.keys()
+frec = open("/F/ZZ/fyp_workplace/wts_min_max.txt",'w')
+for layer_name in layer_name_arr:
+	print "inspecting " + layer_name
 
-layer_name = "conv4_1"
-param_wts = net.params[layer_name][0].data
+	param_wts = net.params[layer_name][0].data
+	wts_vec = param_wts.flatten()
+	param_wts = net.params[layer_name][1].data
+	wts_vec = list(wts_vec)
+	bias_wts_vec = list(param_wts.flatten())
+	wts_vec.extend(bias_wts_vec)
+	wts_vec = np.array(wts_vec)
 
-'''
-row,col = param_wts.shape
-for i in range(row):
-	for j in range(col):
-		if type(param_wts[i][j]) != np.float32:
-			print type(param_wts[i][j])
-'''
+	wts_min = wts_vec.min()
+	wts_max = wts_vec.max()
 
-wts_min = param_wts.min()
-wts_max = param_wts.max()
+	below_num = sum(abs(wts_vec) < 0.01)
+	below_prob = float(below_num) / len(wts_vec)
 
-print "min: " + str(wts_min)
-print "max: " + str(wts_max)
+	frec.write(layer_name + " " + str(wts_min) + " " + str(wts_max) + " " + str(below_num) + " " + str(below_prob) + "\n")
 
-wts_vec = param_wts.flatten()
-
-print sum(abs(wts_vec) < 0.01)
-
-plt.hist(wts_vec,bins=20)
-plt.plot()
-plt.show()
-
+	plt.hist(wts_vec,bins=20)
+	plt.plot()
+	plt.savefig("/F/ZZ/fyp_workplace/" + layer_name + "_weights.png")

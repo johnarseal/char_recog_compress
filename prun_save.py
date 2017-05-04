@@ -21,13 +21,14 @@ def preprocess(img):
 	img = np.transpose(img,(2,0,1))
 	return img
 
-def prun_and_int(param_wts,prun_threshold = 0.01,comp_type='int8'):
+def prun_and_int(param_wts,prun_threshold = 0.01):
 	wts_vec = param_wts.flatten()
 	wts_vec[abs(wts_vec) < prun_threshold] = 0
 
-	# multiply by 1000 and then convert to int8
+	# multiply by 1024 and then convert to int8 or int16
 	wts_vec *= 1024
-	wts_vec = wts_vec.astype(comp_type)
+	# convert it to int16 to prevent loss of accuracy
+	wts_vec = wts_vec.astype('int16')
 
 	# starting to save the weights in bytes
 	# the maximum length of bytes we need
@@ -35,39 +36,31 @@ def prun_and_int(param_wts,prun_threshold = 0.01,comp_type='int8'):
 	for wts in wts_vec:
 		if wts == 0:
 			save_bitarr.append(0)
-		else:
-			cur_byte = bitarray('1',endian='little')
+		# for int16
+		elif wts > 127 or wts < -128:
+			cur_byte = bitarray('11',endian='little')
 			cur_byte.frombytes(wts.tobytes())
+			save_bitarr.extend(cur_byte)
+		# for int8
+		else:
+			cur_byte = bitarray('10',endian='little')
+			cur_byte.frombytes(wts.tobytes())
+			cur_byte = cur_byte[0:10]
 			save_bitarr.extend(cur_byte)
 
 	return save_bitarr
 
 	
-def save_fc_layer(layer_name,net):
+def save_layer(layer_name,net,threshold=0.01):
 	param_wts = net.params[layer_name][0].data
-	bitarr = prun_and_int(param_wts)
+	bitarr = prun_and_int(param_wts,threshold)
 	f = open(param_folder+layer_name+'.params','wb')
 	bitarr.tofile(f)
 	f.close()
 
 	# for bias
 	bias_wts = net.params[layer_name][1].data
-	bias_bitarr = prun_and_int(bias_wts,0.1)
-	f = open(param_folder+"bias_" + layer_name + ".params",'wb')
-	bias_bitarr.tofile(f)
-	f.close()
-
-
-def save_conv_layer(layer_name,net,threshold=0.01):
-	param_wts = net.params[layer_name][0].data
-	bitarr = prun_and_int(param_wts,threshold,'int16')
-	f = open(param_folder+layer_name+'.params','wb')
-	bitarr.tofile(f)
-	f.close()
-
-	# for bias
-	bias_wts = net.params[layer_name][1].data
-	bias_bitarr = prun_and_int(bias_wts,threshold,'int16')
+	bias_bitarr = prun_and_int(bias_wts,threshold)
 	f = open(param_folder+"bias_" + layer_name + ".params",'wb')
 	bias_bitarr.tofile(f)
 	f.close()
@@ -108,11 +101,11 @@ layer_name_arr = net.params.keys()
 for layer_name in layer_name_arr:
 	print "saving layer " + layer_name
 	if len(layer_name) > 4 and layer_name[:4] == 'conv':
-		if int(layer_name[4]) < 5:
-			save_conv_layer(layer_name,net,0)
+		if int(layer_name[4]) < 6:
+			save_layer(layer_name,net,0)
 		else:
-			save_conv_layer(layer_name,net)
+			save_layer(layer_name,net)
 	else:
-		save_fc_layer(layer_name,net)
+		save_layer(layer_name,net)
 
 
