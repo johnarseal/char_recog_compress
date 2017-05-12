@@ -1,7 +1,9 @@
 caffe/
+accu_analysis/
 CMakeLists.txt
 classify.py
 detect.py
 draw_net.py
 requirements.txt
 *.swp
+*.pyc
